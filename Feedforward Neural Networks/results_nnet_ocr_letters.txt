@@ -1,0 +1,2 @@
+lr	dc	sizes	L2	L1	seed	tanh	best_it	train1	valid1	test1	train2	valid2	test2
+0.1	0	[20,10,20]	0.1	0.1	1234	True	1	0.0944886787758	0.0993	0.0993	908.255226126	908.250915223	908.246114551
