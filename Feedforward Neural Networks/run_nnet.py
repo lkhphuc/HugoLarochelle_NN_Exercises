@@ -39,6 +39,8 @@ best_it = 0
 str_header = 'best_it\t'
 look_ahead = 5
 n_incr_error = 0
+errors_train = np.array([0.0, 0.0])
+errors_val = np.array([0.0, 0.0])
 for stage in range(1,500+1,1):
     if not n_incr_error < look_ahead:
         break
@@ -47,10 +49,12 @@ for stage in range(1,500+1,1):
     n_incr_error += 1
     outputs, costs = myObject.test(trainset)
     errors = np.mean(costs,axis=0)
+    errors_train = np.vstack([errors_train, errors])
     print 'Epoch',stage,'|',
     print 'Training errors: classif=' + '%.3f'%errors[0]+',', 'NLL='+'%.3f'%errors[1] + ' |',
     outputs, costs = myObject.test(validset)
     errors = np.mean(costs,axis=0)
+    errors_val = np.vstack([errors_val,errors])
     print 'Validation errors: classif=' + '%.3f'%errors[0]+',', 'NLL='+'%.3f'%errors[1]
     error = errors[0]
     if error < best_val_error:
@@ -59,6 +63,26 @@ for stage in range(1,500+1,1):
         n_incr_error = 0
         best_model = copy.deepcopy(myObject)
 
+# Plot the error
+import matplotlib.pyplot as pyp
+x_grid = np.arange(1, len(errors_train), 1)
+y_grid = np
+pyp.plot(x_grid, errors_train[1:, 0])
+pyp.plot(x_grid, errors_train[1:, 1])
+pyp.legend(['accuracy', 'Negative Log-Likelyhood'])
+pyp.xlabel('Epoch')
+pyp.title('Trainset Accuracy and NLL')
+pyp.show()
+
+x_grid = np.arange(1, len(errors_val), 1)
+y_grid = np
+pyp.plot(x_grid, errors_val[1:, 0])
+pyp.plot(x_grid, errors_val[1:, 1])
+pyp.legend(['accuracy', 'Negative Log-Likelyhood'])
+pyp.xlabel('Epoch')
+pyp.title('Validation set Accuracy and NLL')
+pyp.show()
+        
 outputs_tr,costs_tr = best_model.test(trainset)
 columnCount = len(costs_tr.__iter__().next())
 outputs_v,costs_v = best_model.test(validset)
@@ -75,7 +99,7 @@ for index in range(columnCount):
     valid = str(np.mean(costs_v,axis=0)[index])
     test = str(np.mean(costs_t,axis=0)[index])
     str_header += 'train' + str(index+1) + '\tvalid' + str(index+1) + '\ttest' + str(index+1)
-    str_modelinfo += train + '\t' + valid + '\t' + test
+    str_modelinfo += train + ' \t' + valid + ' \t' + test
     if ((index+1) < columnCount): # If not the last
         str_header += '\t'
         str_modelinfo += '\t'

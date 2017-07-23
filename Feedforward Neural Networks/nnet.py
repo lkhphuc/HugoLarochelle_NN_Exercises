@@ -244,7 +244,7 @@ class NeuralNetwork(Learner):
 
         ## PUT CODE HERE ##
 
-        return -np.log(output[target]) + self.L1 * self.L1_loss() + self.L2 * self.L2_loss()
+        return -np.log(output[target]) #+ self.L1 * self.L1_loss() + self.L2 * self.L2_loss()
 
     def bprop(self,input,target):
         """
@@ -293,11 +293,11 @@ class NeuralNetwork(Learner):
 
         ## PUT CODE HERE ##
         
-        l1 = self.grad_L1()
-        l2 = self.grad_L2()
+#        l1 = self.grad_L1()
+#        l2 = self.grad_L2()
         
         for h in range(len(self.weights)):
-            self.weights[h] -= self.lr * self.grad_weights[h] + self.L1 * l1[h] + self.L2 * l2[h]
+            self.weights[h] -= self.lr * self.grad_weights[h] #+ self.L1 * l1[h] + self.L2 * l2[h]
             self.biases[h] -= self.lr * self.grad_biases[h]
            
     def use(self,dataset):
@@ -321,6 +321,7 @@ class NeuralNetwork(Learner):
             self.fprop(data, target)
             outputs[i, 0] = np.argmax(self.hs[-1])
             outputs[i, 1:] = self.hs[-1]
+#            print outputs[i, 0], target
             
         return outputs
         
@@ -343,7 +344,7 @@ class NeuralNetwork(Learner):
         ## PUT CODE HERE ##
         
         for i, [input, target] in enumerate(dataset):
-            errors[i][0] = 1 if outputs[1][0] == target else 0
+            errors[i][0] = 1 if outputs[i][0] == target else 0
             errors[i][1] = self.training_loss(outputs[i, 1:], target)
             
         return outputs, errors
