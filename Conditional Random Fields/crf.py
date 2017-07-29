@@ -1,6 +1,7 @@
 
 from mlpython.learners.generic import Learner
 import numpy as np
+from scipy.misc import logsumexp
 
 class LinearChainCRF(Learner):
     """
@@ -117,6 +118,7 @@ class LinearChainCRF(Learner):
                 self.fprop(input,target)
                 self.bprop(input,target)
                 self.update()
+            self.lr *= self.dc # decrease the learning rate after each training set
         self.epoch = self.n_epochs
         
     def fprop(self,input,target):
@@ -139,8 +141,21 @@ class LinearChainCRF(Learner):
 
         ## PUT CODE HERE ##
         # (your code should call belief_propagation and training_loss)
+        self.unary_log_factors_0 = np.dot(input, self.weights[0]) + self.bias #bias is broadcasted
+        self.unary_log_factors_1 = np.dot(input, self.weights[-1]) #+ self.bias
+        self.unary_log_factors_2 = np.dot(input, self.weights[1]) #+ self.bias
         
-        raise NotImplementedError()
+        self.unary_log_factors_0[1:,:] += self.unary_log_factors_1[:-1,:]
+        self.unary_log_factors_0[:-1,:] += self.unary_log_factors_2[1:,:]
+        
+        # Calculate log_alpha, log_beta table        
+        self.belief_propagation(input)
+        
+        # unary_log_factors is holding value for weights[0]
+        self.target_unary_log_factors = self.unary_log_factors_0[np.arange(input.shape[0]), target]
+        
+        return self.training_loss(target, self.target_unary_log_factors, self.alpha, self.beta)
+        
 
     def belief_propagation(self,input):
         """
@@ -148,9 +163,76 @@ class LinearChainCRF(Learner):
         belief propagation (which is equivalent to forward-backward in HMMs).
         """
         ## PUT CODE HERE ##
-
-        raise NotImplementedError()
+        
+        # Alpha/beta table will be a numpy 2D array, each row is a sequence,
+        # and each column represent the class in each position of sequence
+        
+        ## LOG-ALPHA
+        self.alpha = np.zeros((0,0))
+        # Create the first row, with 0 column
+        self.alpha = np.vstack((self.alpha, [[]]))
+        # Add #number_of_classes columns
+        self.alpha = np.hstack((self.alpha, np.zeros([1, self.n_classes])))
+        
+        # Initialize for alpha1
+        for y2 in range(self.n_classes) :
+            tmp = self.unary_log_factors_0[0] + self.lateral_weights[:,y2]
+#            self.alpha[0][y2] += np.max(tmp) + np.log(np.sum(np.exp(tmp - np.max(tmp))))
+            self.alpha[0][y2] += logsumexp(tmp)
+            
+        alpha_tmp = np.zeros([1, self.n_classes])
+        for k in range(1, input.shape[0]-1):
+            for y2 in range(self.n_classes):
+                tmp = self.unary_log_factors_0[k] + self.lateral_weights[:,y2] + self.alpha[k-1]
+#                alpha_tmp[0][y2] = np.max(tmp) + np.log(np.sum(np.exp(tmp - np.max(tmp))))
+                alpha_tmp[0][y2] = logsumexp(tmp)
+                
+            self.alpha = np.vstack((self.alpha, alpha_tmp))
+        
+        
+        ## LOG-BETA
+        self.beta = np.zeros((0,0))
+        # Create the first row, with 0 column
+        self.beta = np.vstack((self.beta, [[]]))
+        # Add #number_of_classes columns
+        self.beta = np.hstack((self.beta, np.zeros([1, self.n_classes])))
+        
+        # Initialize for beta1
+        for y1 in range(self.n_classes):
+            tmp = self.unary_log_factors_0[-1] + self.lateral_weights[y1,:]
+#            self.beta[0][y1] += np.max(tmp) + np.log(np.sum(np.exp(tmp - np.max(tmp))))
+            self.beta[0][y1] += logsumexp(tmp)
+            
+        beta_tmp = np.zeros((1, self.n_classes))            
+        for k in range(input.shape[0]-2, 0, -1):
+            for y1 in range(self.n_classes):
+                # because beta table is insert from the bottom up, so referring 
+                # to the previous one is simply the first one up to now
+                tmp = self.unary_log_factors_0[k] + self.lateral_weights[y1,:] + self.beta[0]
+#                beta_tmp[0][y1] = np.max(tmp) + np.log(np.sum(np.exp(tmp - np.max(tmp)))) 
+                beta_tmp[0][y1] = logsumexp(tmp)
+                
+            self.beta = np.vstack((beta_tmp, self.beta))
+            
+        ## PARTITION FUNCTION LOG-Z(X)
+        tmp = self.unary_log_factors_0[-1] + self.alpha[-1]
+#        self.Z_alpha = np.exp(np.max(tmp) + np.log(np.sum(np.exp(tmp - np.max(tmp)))))
+        self.Z_alpha = logsumexp(tmp)
+        
+        tmp = self.unary_log_factors_0[0] + self.beta[0]
+#        self.Z_beta = np.exp(np.max(tmp) + np.log(np.sum(np.exp(tmp - np.max(tmp)))))
+        self.Z_beta = logsumexp(tmp)
+        
+    def L2_loss(self):
+        return (np.sum(np.square(self.weights[0])) 
+              + np.sum(np.square(self.weights[1])) 
+              + np.sum(np.square(self.weights[-1])) )
     
+    def L1_loss(self):
+        return (np.sum(self.weights[0])
+              + np.sum(self.weights[1]) 
+              + np.sum(self.weights[-1]))
+            
     def training_loss(self,target,target_unary_log_factors,alpha,beta):
         """
         Computation of the loss:
@@ -159,8 +241,12 @@ class LinearChainCRF(Learner):
         """
 
         ## PUT CODE HERE ##
-
-        raise NotImplementedError()
+        
+        # Return negative log likelyhood;
+        # -log(exp(A)/Z) = - (log(exp(A)) - log(Z)) = log(Z) - A
+        return (self.Z_alpha - (np.sum(target_unary_log_factors) + np.sum(self.lateral_weights[target[:-1], target[1:]]))
+               + self.L2 * self.L2_loss() 
+               + self.L1 * self.L1_loss()) 
 
     def bprop(self,input,target):
         """
@@ -178,7 +264,88 @@ class LinearChainCRF(Learner):
 
         ## PUT CODE HERE ##
 
-        raise NotImplementedError()
+        # Compute all the marginal probabilities P(y-kth|X)
+        # by calculating the pre-exp matrix of size [sequence size x n_classes]
+
+        exp_matrix = np.zeros([input.shape[0], self.n_classes])
+        
+        for k in range(exp_matrix.shape[0]):
+            for c in range(exp_matrix.shape[1]):
+                exp_matrix[k][c] = self.unary_log_factors_0[k][c]
+                if (k>0):
+                    exp_matrix[k][c] += self.alpha[k-1][c]
+                if (k+1 < exp_matrix.shape[0]):
+                    # indexing !!!!!
+                    exp_matrix[k][c] += self.beta[k][c]
+                # THE VALUE INSIDE THE MATRIX ARE NOT YET EXPONENTIATED
+#                exp_matrix[k][c] = np.exp(exp_matrix[k][c])
+                
+                
+        # Marginal probabilites matrix
+        P_y = np.zeros((input.shape[0], self.n_classes))
+        for k in range(P_y.shape[0]):
+            # P_y[k] = exp(A) / sum(exp(all_A) 
+            #        =  exp(A) / exp(log(sum(exp(all_A))))
+            #        = exp (A - logsumexp(all_A))
+            
+#            P_y[k] = exp_matrix[k] / np.sum(exp_matrix[k])
+            P_y[k] = np.exp(exp_matrix[k] - logsumexp(exp_matrix[k]))
+        
+        # Output
+        self.predict = np.argmax(P_y, axis=1)
+        # One hot matrix
+        E_y = np.zeros((input.shape[0], self.n_classes))
+        for k in range(E_y.shape[0]):
+            E_y[k][target[k]] = 1
+            
+        
+        # grad_bias
+        self.grad_bias = np.sum(-(E_y - P_y), axis=0)
+        # grad_weights
+        self.grad_weights[0] = np.dot(np.transpose(input), -(E_y - P_y))
+        self.grad_weights[-1] = np.dot(np.transpose(input[:-1, :]), -(E_y - P_y)[1:, :])
+        self.grad_weights[1] = np.dot(np.transpose(input[1:, :]), -(E_y - P_y)[:-1, :])
+        # L2 regularization
+        self.grad_weights[0] += self.L2 * 2 * self.weights[0]
+        self.grad_weights[-1] += self.L2 * 2 * self.weights[-1]
+        self.grad_weights[1] += self.L2 * 2 * self.weights[1]
+        # L1 regularization
+        self.grad_weights[0] += self.L1 * np.sign(self.weights[0])
+        self.grad_weights[-1] += self.L1 * np.sign(self.weights[-1])
+        self.grad_weights[1] += self.L1 * np.sign(self.weights[1])
+        
+        # Compute all the marginal probabilites P(y-k,y+1|X) by calculating 
+        # the 3D matrix of size [sequence size x [n_classes x n_classes]]
+        exp_matrix_3D = np.zeros((input.shape[0], self.n_classes, self.n_classes))
+
+                            
+        for k in range(exp_matrix_3D.shape[0]-1):
+            for c1 in range(exp_matrix_3D.shape[1]):
+                for c2 in range(exp_matrix_3D.shape[2]):
+                    exp_matrix_3D[k][c1][c2] = self.unary_log_factors_0[k][c1] + self.lateral_weights[c1][c2] 
+                    if (k>0):
+                        exp_matrix_3D[k][c1][c2] += self.alpha[k-1][c1]
+                    if (k+1 < input.shape[0]):
+                        exp_matrix_3D[k][c1][c2] += self.unary_log_factors_0[k+1][c2]
+                        if (k+2< input.shape[0]):
+                            exp_matrix_3D[k][c1][c2] += self.beta[k+1][c2]
+                    # THE VALUES INSIDE MATRIX ARE NOT YET EXPONENTIATED
+#                    exp_matrix_3D[k][c1][c2] = np.exp(exp_matrix_3D[k][c1][c2])
+                    
+        # Marginal probabilities 3D matrix
+        P_y_y1 = np.zeros((input.shape[0], self.n_classes, self.n_classes))
+        for k in range(P_y_y1.shape[0]):
+#            P_y_y1[k] = exp_matrix_3D[k] / np.sum(exp_matrix[k])
+            # P_y_Y1[k] = exp(A) / sum(exp(all_A) 
+            #           =  exp(A) / exp(log(sum(exp(all_A))))
+            #            = exp (A - logsumexp(all_A))
+            P_y_y1[k] = np.exp(exp_matrix_3D[k] - logsumexp(exp_matrix_3D[k]))
+        
+        # Summing over k=1 to K-1
+        for k in range(input.shape[0]-1):
+            E_y_y1 = np.zeros((self.n_classes, self.n_classes))
+            E_y_y1[target[k], target[k+1]] = 1
+            self.grad_lateral_weights += -(E_y_y1 - P_y_y1[k])
 
     def update(self):
         """
@@ -190,7 +357,11 @@ class LinearChainCRF(Learner):
 
         ## PUT CODE HERE ##
 
-        raise NotImplementedError()
+        self.bias -= self.lr * self.grad_bias
+        self.weights[0] -= self.lr * self.grad_weights[0]
+        self.weights[1] -= self.lr * self.grad_weights[1]
+        self.weights[-1] -= self.lr * self.grad_weights[-1]
+        self.lateral_weights -= self.lr * self.grad_lateral_weights
            
     def use(self,dataset):
         """
@@ -206,7 +377,10 @@ class LinearChainCRF(Learner):
 
         outputs = []
 
-        raise NotImplementedError()
+        for input, target in dataset:
+            self.fprop(input, target)
+            self.bprop(input, target)
+            outputs += [self.predict]
             
         return outputs
         
@@ -227,7 +401,10 @@ class LinearChainCRF(Learner):
         errors = []
 
         ## PUT CODE HERE ##
-        raise NotImplementedError()
+        for k, (input, target) in enumerate(dataset):
+            nll = self.fprop(input, target)
+            classif_errors = 1 * (outputs[k] == target)
+            errors += [(classif_errors, nll)]
             
         return outputs, errors
  
@@ -307,6 +484,6 @@ class LinearChainCRF(Learner):
             self.bias[i] += epsilon
             
             emp_grad_bias[i] = (a-b)/(2.*epsilon)
-
+        
         print 'grad_bias diff.:',np.sum(np.abs(self.grad_bias.ravel()-emp_grad_bias.ravel()))/self.bias.ravel().shape[0]
 

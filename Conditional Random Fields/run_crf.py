@@ -70,6 +70,9 @@ best_it = 0
 str_header = 'best_it\t'
 look_ahead = 5
 n_incr_error = 0
+
+errors_train = np.array([0.0, 0.0, 0.0, 0.0])
+errors_val = np.array([0.0, 0.0, 0.0, 0.0])
 for stage in range(1,500+1,1):
     if not n_incr_error < look_ahead:
         break
@@ -80,15 +83,43 @@ for stage in range(1,500+1,1):
     errors = compute_error_mean_and_sterror(costs)
     print 'Epoch',stage,'|',
     print 'Training errors: classif=' + '%.3f'%errors[0]+',', 'NLL='+'%.3f'%errors[1] + ' |',
+    errors_train = np.vstack([errors_train, errors])
     outputs, costs = myObject.test(validset)
     errors = compute_error_mean_and_sterror(costs)
     print 'Validation errors: classif=' + '%.3f'%errors[0]+',', 'NLL='+'%.3f'%errors[1]
+    errors_val = np.vstack([errors_val,errors])
     error = errors[0]
     if error < best_val_error:
         best_val_error = error
         best_it = stage
         n_incr_error = 0
         best_model = copy.deepcopy(myObject)
+
+# Plot the error
+import matplotlib.pyplot as pyp
+x_grid = np.arange(1, len(errors_train), 1)
+y_grid = np
+#pyp.plot(x_grid, errors_train[1:, 0])
+pyp.plot(x_grid, errors_train[1:, 1])
+pyp.legend(['Negative Log-Likelyhood'])# 'accuracy', 
+pyp.xlabel('Epoch')
+pyp.title('Trainset NLL')# and Accuracy')
+pyp.show()
+
+x_grid = np.arange(1, len(errors_val), 1)
+y_grid = np
+#pyp.plot(x_grid, errors_val[1:, 0])
+pyp.plot(x_grid, errors_val[1:, 1])
+pyp.legend(['Negative Log-Likelyhood'])
+pyp.xlabel('Epoch')
+pyp.title('Validation set Negative Log Likelyhood')
+pyp.show()
+        
+outputs_tr,costs_tr = best_model.test(trainset)
+columnCount = len(costs_tr.__iter__().next())
+outputs_v,costs_v = best_model.test(validset)
+outputs_t,costs_t = best_model.test(testset)
+
 
 outputs_tr,costs_tr = best_model.test(trainset)
 outputs_v,costs_v = best_model.test(validset)
