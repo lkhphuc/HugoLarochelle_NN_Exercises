@@ -12,7 +12,7 @@
 |       1       |        0       |    [100,50]   |  0 |  0 |   Sigmoid  |    0.294    |      0.3019      |   0.2934   |   2.4305  |     2.4035     |  2.4494  |
 |      0.5      |        0       |    [100,50]   |  0 |  0 |   Sigmoid  |    0.635    |      0.6233      |   0.6309   |   1.2537  |     1.3005     |  1.2842  |
 
-We test through a few combinations of hyperparameters, and see that the combination with *learning rate* of 0.1 and *hidden layers size* is [100, 50] yields the best result.
+I test through a few combinations of hyperparameters, and see that the combination with *learning rate* of 0.1 and *hidden layers size* is [100, 50] yields the best result.
 
 ![Trainset accuracy and NLL](images/train.png?raw=true)
 
