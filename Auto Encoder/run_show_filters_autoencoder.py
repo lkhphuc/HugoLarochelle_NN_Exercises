@@ -6,7 +6,7 @@ import copy
 from string import Template
 import mlpython.datasets.store as dataset_store
 import mlpython.mlproblems.generic as mlpb
-from rbm import RBM
+#from rbm import RBM
 from autoencoder import Autoencoder
 
 print "Loading dataset..."

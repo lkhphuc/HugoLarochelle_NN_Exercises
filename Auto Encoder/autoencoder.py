@@ -3,6 +3,7 @@ import mlpython.learners.generic as mlgen
 import mlpython.learners.classification as mlclass
 import mlpython.mlproblems.generic as mlpb 
 import mlpython.mlproblems.classification as mlpbclass
+from scipy.special import expit
 
 
 class Autoencoder(mlgen.Learner):
@@ -35,6 +36,10 @@ class Autoencoder(mlgen.Learner):
         self.seed = seed
         self.rng = np.random.mtrand.RandomState(self.seed)   # create random number generator
         
+    def sigmoid_deri(self, x):
+        """Comppute the derivative of sigmoid"""
+        return expit(x)*(1-expit(x))
+    
     def train(self,trainset):
         """
         Train autoencoder for ``self.n_epochs`` iterations.
@@ -48,15 +53,34 @@ class Autoencoder(mlgen.Learner):
         
         for it in range(self.n_epochs):
             for input in trainset:
-
+                # noising the input
+                random =  np.random.random_sample(input_size)
+                x_tilt = input
+                x_tilt[random < self.noise_prob] = 0
                 # fprop
-                "PUT CODE HERE"
-
+                """PUT CODE HERE"""
+                a = self.b + np.dot(x_tilt, self.W)
+                h_x = expit(a)
+                a_hat = self.c + np.dot(h_x, self.W.T)
+                x_hat = expit(a_hat)
+                
                 # bprop
                 "PUT CODE HERE"
+                grad_x_hat = x_hat -input
+                grad_a_hat = grad_x_hat
+                grad_W_star = np.outer(h_x, grad_a_hat)
+                grad_c = grad_a_hat
+                
+                grad_h_x = np.dot(grad_a_hat, self.W)
+                grad_a = np.multiply(grad_h_x, self.sigmoid_deri(a))
+                grad_W = np.outer(x_tilt, grad_a)
+                grad_b = grad_a
                 
                 # Updating the parameters
                 "PUT CODE HERE"
+                self.W -= self.lr * (grad_W + grad_W_star.T)
+                self.b -= self.lr * grad_b
+                self.c -= self.lr * grad_c
 
     def show_filters(self):
         from matplotlib.pylab import show, draw, ion
