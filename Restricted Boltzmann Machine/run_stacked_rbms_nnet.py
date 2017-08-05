@@ -115,21 +115,19 @@ for stage in range(1,500+1,1):
 # Plot the error
 import matplotlib.pyplot as pyp
 x_grid = np.arange(1, len(errors_train), 1)
-y_grid = np
-#pyp.plot(x_grid, errors_train[1:, 0])
-pyp.plot(x_grid, errors_train[1:, 1])
-pyp.legend(['Negative Log-Likelyhood'])# 'accuracy', 
+pyp.plot(x_grid, errors_train[1:, 0])
+#pyp.plot(x_grid, errors_train[1:, 1])
+pyp.legend(['Classification error'])# 'accuracy', 
 pyp.xlabel('Epoch')
-pyp.title('Trainset NLL')# and Accuracy')
+pyp.title('Trainset Classification error')# and Accuracy')
 pyp.show()
 
 x_grid = np.arange(1, len(errors_val), 1)
-y_grid = np
-#pyp.plot(x_grid, errors_val[1:, 0])
-pyp.plot(x_grid, errors_val[1:, 1])
-pyp.legend(['Negative Log-Likelyhood'])
+pyp.plot(x_grid, errors_val[1:, 0])
+#pyp.plot(x_grid, errors_val[1:, 1])
+pyp.legend(['Classification Error'])
 pyp.xlabel('Epoch')
-pyp.title('Validation set Negative Log Likelyhood')
+pyp.title('Validation set Classification error')
 pyp.show()
         
 outputs_tr,costs_tr = best_model.test(trainset)

@@ -59,6 +59,14 @@ class Autoencoder(mlgen.Learner):
                 x_tilt[random < self.noise_prob] = 0
                 # fprop
                 """PUT CODE HERE"""
+# =============================================================================
+#                 def compute_h(input,weights,bias):
+#                     act = bias+np.dot(input,weights)
+#                     return 1./(1+np.exp(-act))
+#                 h_x = compute_h(x_tilt, self.W, self.b)
+#                 x_hat = compute_h(h_x, self.W.T, self.c)
+# =============================================================================
+                
                 a = self.b + np.dot(x_tilt, self.W)
                 h_x = expit(a)
                 a_hat = self.c + np.dot(h_x, self.W.T)
@@ -66,6 +74,22 @@ class Autoencoder(mlgen.Learner):
                 
                 # bprop
                 "PUT CODE HERE"
+# =============================================================================
+#                 def compute_grad_h(input,weights,bias,h,grad_weights,grad_bias,grad_h):
+#                     grad_act = h*(1-h)*grad_h
+#                     grad_weights[:,:] = np.outer(input,grad_act) 
+#                     grad_bias[:] = grad_act
+#                     return np.dot(grad_act,weights.T)
+#                 
+#                 grad_a_hat = x_hat - input
+#                 grad_W_star = np.zeros(self.W.T.shape)
+#                 grad_c = np.zeros(self.c.shape)
+#                 grad_h_x = compute_grad_h(h_x, self.W.T, self.c, x_hat, grad_W_star, grad_c, grad_a_hat)
+#                                 
+#                 grad_W = np.zeros(self.W.shape)
+#                 grad_b = np.zeros(self.b.shape)
+#                 compute_grad_h(x_tilt, self.W, self.b, h_x, grad_W, grad_b, grad_h_x)
+# =============================================================================
                 grad_x_hat = x_hat -input
                 grad_a_hat = grad_x_hat
                 grad_W_star = np.outer(h_x, grad_a_hat)
